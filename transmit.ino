@@ -1,7 +1,9 @@
- // IR DEFINITIONS
-int IRledPin =          13;           // Pin for IR LED
+#include <time.h>
 
-uint16_t IRsignal[] = 
+// IR DEFINITIONS
+int IRledPin = 13;           // Pin for IR LED
+
+uint16_t IRsignalOff[] = 
 {
   // ON, OFF 
   9400, 4640,
@@ -84,7 +86,7 @@ uint16_t IRsignalOn[] =
   540, 0
 };
 
-uint16_t IRsignalOn10[] = 
+uint16_t IRsignal10[] = 
 {
   9460, 4620,
   660, 520,
@@ -123,7 +125,7 @@ uint16_t IRsignalOn10[] =
   9420, 2300,
   540, 0
 };
-uint16_t IRsignalOn100[] = 
+uint16_t IRsignal100[] = 
 {
   9400, 4640,
   620, 560,
@@ -163,64 +165,67 @@ uint16_t IRsignalOn100[] =
   540, 0
 };
 
+int signalSizes[] =
+{
+  sizeof(IRsignalOff) / 2,
+  sizeof(IRsignalOn) / 2,
+  sizeof(IRsignal10) / 2,
+  sizeof(IRsignal100) / 2,
+}
+
 // This procedure sends a 38KHz pulse to the IRledPin 
 // for a certain # of microseconds. We'll use this whenever we need to send codes
 void pulseIR(long microsecs)
 {
   // we'll count down from the number of microseconds we are told to wait
- 
+
   cli();  // this turns off any background interrupts
- 
+
   while (microsecs > 0)
   {
     // 38 kHz is about 13 microseconds high and 13 microseconds low
-   digitalWrite(IRledPin, HIGH);  // this takes about 3 microseconds to happen
-   delayMicroseconds(10);         // hang out for 10 microseconds, you can also change this to 9 if its not working
-   digitalWrite(IRledPin, LOW);   // this also takes about 3 microseconds
-   delayMicroseconds(10);         // hang out for 10 microseconds, you can also change this to 9 if its not working
- 
-   // so 26 microseconds altogether
-   microsecs -= 26;
+    digitalWrite(IRledPin, HIGH);  // this takes about 3 microseconds to happen
+    delayMicroseconds(10);         // hang out for 10 microseconds, you can also change this to 9 if its not working
+    digitalWrite(IRledPin, LOW);   // this also takes about 3 microseconds
+    delayMicroseconds(10);         // hang out for 10 microseconds, you can also change this to 9 if its not working
+
+    // so 26 microseconds altogether
+    microsecs -= 26;
   }
- 
+
   sei();  // this turns them back on
 }
 
-void SendIRCode()
+uint16_t* getSignal(int mode)
 {
-  int arraySize = sizeof(IRsignal)/2;
-  for (int k = 0; k < 5; k++)
+  if (mode == 0)
   {
-  for (int i = 0; i < arraySize; i++)
+    return IRsignalOff;
+  } else if (mode == 1)
   {
-//    Serial.print("Value: ");
-//    Serial.println(IRsignal[i]);
-    pulseIR(IRsignal[i++]);
-    delayMicroseconds(IRsignal[i]);
+    return IRsignalOn;
+  } else if (mode == 2)
+  {
+    return IRsignal10;
+  } else {
+    return IRsignal100;
   }
+};
+
+
+void SendIRCode(int mode)
+{
+  uint16_t* IRsignal = getSignal(mode);
+  int arraySize = signalSizes[mode];
+  for (int k = 0; k < 3; k++)
+  {
+    for (int i = 0; i < arraySize; i += 2)
+    {
+      pulseIR(IRsignal[i]);
+      delayMicroseconds(IRsignal[i + 1]);
+    }
   }
 }
-
-//void printpulses(void)
-//{  
-//  // print it in an 'array' format
-//  Serial.println("int IRsignal[] = {");
-//  Serial.println("// ON, OFF");
-//  int i;
-//  for (i = 0; i < sizeof(IRsignal)/4 - 1; i++)
-//  {
-//    Serial.print("\t"); // tab
-//    Serial.print(IRsignal[i*2], DEC);
-//    Serial.print(", ");
-//    Serial.print(IRsignal[i*2 + 1], DEC);
-//    Serial.println(",");
-//  }
-//  Serial.print("\t"); // tab
-//  Serial.print(IRsignal[i], DEC);
-//  Serial.print(", ");
-//  Serial.print(IRsignal[i*2 + 1], DEC);
-//  Serial.println("};");
-//}
 
 void setup(void)
 {
@@ -232,9 +237,13 @@ void setup(void)
 
 void loop(void)
 {
-    SendIRCode();
-//    printpulses();
-    
-    Serial.println("IR signal sent for decoded value: ");
-    delay(1000);
+  int mode = 0;
+  while (true)
+  {
+  SendIRCode(mode);
+  Serial.print("Mode: ");
+  Serial.println(mode);
+  mode = (mode + 1) % 4;
+  delay(3000);
+  }
 }
