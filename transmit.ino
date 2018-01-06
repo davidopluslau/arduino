@@ -1,4 +1,9 @@
-#include <time.h>
+#include <TimeLib.h>
+
+#define EIGHT_AM 28800
+#define FOUR_PM 57600
+#define SEVEN_PM 68400
+#define SECONDS_IN_DAY 86400
 
 // IR DEFINITIONS
 int IRledPin = 13;           // Pin for IR LED
@@ -171,7 +176,7 @@ int signalSizes[] =
   sizeof(IRsignalOn) / 2,
   sizeof(IRsignal10) / 2,
   sizeof(IRsignal100) / 2,
-}
+};
 
 // This procedure sends a 38KHz pulse to the IRledPin 
 // for a certain # of microseconds. We'll use this whenever we need to send codes
@@ -212,6 +217,10 @@ uint16_t* getSignal(int mode)
   }
 };
 
+uint32_t getDaySeconds()
+{
+  return ((uint32_t) ((uint32_t) hour() * 3600) + ((uint32_t) minute() * 60) + (uint32_t) second());
+}
 
 void SendIRCode(int mode)
 {
@@ -233,17 +242,40 @@ void setup(void)
 
   Serial.begin(9600);                           // Begin serial data transfer
   Serial.println("Lighting cycles begun");
+  setTime(17, 0, 30, 6, 1, 2018);
 }
 
 void loop(void)
 {
-  int mode = 0;
-  while (true)
+  int mode;
+  uint32_t daySeconds = getDaySeconds();
+  uint32_t nextInterval;
+  if (daySeconds <= EIGHT_AM)
   {
+    mode = 2;
+    nextInterval = EIGHT_AM - daySeconds;
+  } else if (daySeconds <= FOUR_PM)
+  {
+    mode = 0;
+    nextInterval = FOUR_PM - daySeconds;
+  } else if (daySeconds <= SEVEN_PM) {
+    mode = 2;
+    nextInterval = SEVEN_PM - daySeconds;
+  }
+  else {
+    mode = 3;
+    nextInterval = SECONDS_IN_DAY - daySeconds;
+  }
+  if (mode != 0)
+  {
+    SendIRCode(1);
+  }
   SendIRCode(mode);
   Serial.print("Mode: ");
   Serial.println(mode);
-  mode = (mode + 1) % 4;
-  delay(3000);
-  }
+  Serial.print("Day Seconds: ");
+  Serial.println(daySeconds);
+  Serial.print("Next Interval: ");
+  Serial.println(nextInterval);
+  delay(nextInterval * 1000);
 }
